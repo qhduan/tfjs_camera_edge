@@ -1,0 +1,128 @@
+<html>
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+
+</head>
+
+<body>
+
+    <video id="video" controls="controls" style="height: 224px; width: 400px; opacity: 1;">
+        <!-- <source type="video/mp4" src="3.mp4" id="mp4"></source> -->
+    </video>
+    <canvas id="render" style="height: 224px; width: 400px; opacity: 1;"></canvas>
+    <button id='play'>play</button>
+    <button id='stop'>stop</button>
+
+    <script>
+
+        const height = 224
+        const width = 400
+        let isStop = false
+
+        const maskArray = []
+        for (let i = 0; i < height; i ++) {
+            for (let j = 0; j < width; j ++) {
+                if (i % 3) {
+                    maskArray.push(1)
+                } else if (j % 5) {
+                    maskArray.push(1)
+                } else {
+                    maskArray.push(0)
+                }
+            }
+        }
+        const mask = tf.tensor2d(maskArray, [height, width], 'float32')
+
+        let model = null
+
+        async function loadModel() {
+            model = await tf.loadGraphModel('jsmodel/model.json')
+        }
+
+        loadModel()
+
+        const video = document.querySelector("video")
+        const canvasRender = document.querySelector("#render")
+        const contextRender = canvasRender.getContext('2d')
+
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                video.srcObject = stream;
+            })
+            .catch(function (err0r) {
+                console.log("Something went wrong!");
+            });
+        }
+        
+        function getImage() {
+            let img = tf.image.resizeBilinear(tf.expandDims(tf.browser.fromPixels(document.querySelector('video')), 0), [height, width])
+            return tf.div(img, 255.0)
+        }
+
+        function fixPixel(v) {
+            v = Math.round(v)
+            v = Math.max(0, v)
+            v = Math.min(v, 255)
+            return v
+        }
+
+        async function drawImage(obj, mul=false, text='') {
+            const height = obj.height
+            const width = obj.width
+            const data = obj.data
+
+            const imageData = new ImageData(width, height)
+            const buffer = new Uint8ClampedArray(width * height * 4)
+            let i = 0
+            for(let y = 0; y < height; y++) {
+                for(let x = 0; x < width; x++) {
+                    const pos = (y * width + x) * 4
+                    buffer[pos + 0] = fixPixel(data[i])
+                    buffer[pos + 1] = fixPixel(data[i])
+                    buffer[pos + 2] = fixPixel(data[i])
+                    buffer[pos + 3] = 255
+                    i += 1
+                }
+            }
+            imageData.data.set(buffer)
+            contextRender.putImageData(imageData, 0, 0)
+        }
+
+        async function run() {
+            if (!model) {
+                return window.requestAnimationFrame(run)
+            }
+            // const model = await loadModel()
+            const input = getImage()
+            // console.log(input)
+            let out = model.execute(input)
+            // out = tf.abs(out)
+            // out = out.squeeze()
+            out = tf.clipByValue(out, 0.0, 1.0)
+            out = tf.cast(tf.greater(out, 0.75), 'float32')
+            // out = tf.mul(out, mask)
+            out = out.squeeze()
+            out = tf.mul(out, mask)
+            tf.browser.toPixels(out, canvasRender)
+            if (!isStop) {
+                setTimeout(run, 50)
+            }
+        }
+
+        document.querySelector('#play').addEventListener('click', () => {
+            video.play()
+            isStop = false
+            run()
+        })
+
+        document.querySelector('#stop').addEventListener('click', () => {
+            isStop = true
+            video.pause()
+        })
+
+    </script>
+</body>
+
+</html>
