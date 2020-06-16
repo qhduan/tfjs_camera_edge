@@ -20,19 +20,19 @@
         const width = 400
         let isStop = false
 
-        const maskArray = []
-        for (let i = 0; i < height; i ++) {
-            for (let j = 0; j < width; j ++) {
-                if (i % 3) {
-                    maskArray.push(1)
-                } else if (j % 5) {
-                    maskArray.push(1)
-                } else {
-                    maskArray.push(0)
-                }
-            }
-        }
-        const mask = tf.tensor2d(maskArray, [height, width], 'float32')
+        // const maskArray = []
+        // for (let i = 0; i < height; i ++) {
+        //     for (let j = 0; j < width; j ++) {
+        //         if (i % 3) {
+        //             maskArray.push(1)
+        //         } else if (j % 5) {
+        //             maskArray.push(1)
+        //         } else {
+        //             maskArray.push(0)
+        //         }
+        //     }
+        // }
+        // const mask = tf.tensor2d(maskArray, [height, width], 'float32')
 
         let model = null
 
@@ -104,7 +104,7 @@
             out = tf.cast(tf.greater(out, 0.75), 'float32')
             // out = tf.mul(out, mask)
             out = out.squeeze()
-            out = tf.mul(out, mask)
+            // out = tf.mul(out, mask)
             tf.browser.toPixels(out, canvasRender)
             if (!isStop) {
                 setTimeout(run, 50)
